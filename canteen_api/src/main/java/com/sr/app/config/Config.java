@@ -45,7 +45,8 @@ public class Config {
                 		"/api/v1/auth/**",
                 		"/api/v1/category/public/**",
                 		"/api/v1/menu-item/public/**",
-                		"/api/v1/orders/public/**").permitAll()
+                		"/api/v1/orders/public/**",
+                		"/api/v1/dashboard/public/**").permitAll()
                 // OAuth2 related URLs open
                 .requestMatchers("/oauth2/**").permitAll()
                 // Swagger docs open

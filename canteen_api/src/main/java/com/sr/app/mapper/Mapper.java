@@ -8,6 +8,7 @@ import com.sr.app.dto.CartDto;
 import com.sr.app.dto.CategoryDto;
 import com.sr.app.dto.MenuItemCartInfoDto;
 import com.sr.app.dto.MenuItemDto;
+import com.sr.app.dto.OrderUserDto;
 import com.sr.app.dto.OrdersDto;
 import com.sr.app.dto.UserDto;
 import com.sr.app.models.Cart;
@@ -15,6 +16,8 @@ import com.sr.app.models.ItemCategory;
 import com.sr.app.models.MenuItems;
 import com.sr.app.models.Orders;
 import com.sr.app.models.Users;
+import com.sr.app.respos.UserRepo;
+import com.sr.app.services.IUserService;
 
 @Component
 public class Mapper {
@@ -22,6 +25,10 @@ public class Mapper {
 	
 	@Autowired
 	private ModelMapper modelMapper;
+	
+	
+	@Autowired
+	private UserRepo userRepo;
 	
 	
 	public CategoryDto toDto(ItemCategory itemCategory)
@@ -85,6 +92,31 @@ public class Mapper {
 	public OrdersDto toDto(Orders order)
 	{
 		return modelMapper.map(order, OrdersDto.class);
+	}
+	
+	public OrderUserDto toUserOrderDto(Orders orders)
+	{
+		OrderUserDto orderUserDto =new OrderUserDto();
+		
+		OrdersDto ordersDto = toDto(orders);
+		
+		orderUserDto.setOrder(ordersDto);
+		
+		if(orders.getUserId() != null)
+		{
+			Users users= userRepo.findById(orders.getUserId()).orElse(null);
+			
+			if(users !=null)
+			{
+				orderUserDto.setUser(toDto(users));
+			}
+			
+		}
+		
+		return orderUserDto;
+		
+		
+		
 	}
 	
 }

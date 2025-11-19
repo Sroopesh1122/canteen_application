@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import com.sr.app.constants.OrderStatusConstants;
+import com.sr.app.dto.OrderUserDto;
 import com.sr.app.dto.OrdersDto;
 import com.sr.app.exception.AppException;
 import com.sr.app.mapper.Mapper;
@@ -28,6 +31,7 @@ import com.sr.app.models.Orders;
 import com.sr.app.request.OrderRequest;
 import com.sr.app.request.OrderRequest.OrderItemRequest;
 import com.sr.app.response.OrderResponse;
+import com.sr.app.response.OrdersCountsResponse;
 import com.sr.app.respos.CartRepo;
 import com.sr.app.respos.DeliveryAddressRepo;
 import com.sr.app.respos.MenuItemRespo;
@@ -108,7 +112,18 @@ public class OrderServiceimpl implements IOrderService {
 			throw new AppException("Order Not Found", HttpStatus.NOT_FOUND);
 		}
 		
-		order.setStatus(status);
+         String requestedStatus = null;
+		
+		if(status!=null)
+		{
+			if(status.equalsIgnoreCase("pending")) requestedStatus = OrderStatusConstants.PENDING;
+			else if(status.equalsIgnoreCase("cancelled")) requestedStatus = OrderStatusConstants.CANCELLED;
+			else if(status.equalsIgnoreCase("delivered")) requestedStatus = OrderStatusConstants.DELIVERED;
+			else if(status.equalsIgnoreCase("failed")) requestedStatus = OrderStatusConstants.FAILED;
+			else if(status.equalsIgnoreCase("paid")) requestedStatus = OrderStatusConstants.PAID;
+		}
+		
+		order.setStatus(requestedStatus);
 		
 		orderRepo.save(order);
 		
@@ -187,6 +202,28 @@ public class OrderServiceimpl implements IOrderService {
 		
 		return orderRepo.findByUser(userId, pageable).map(o->mapper.toDto(o));
 	}
+	
+	
+	@Override
+	public Page<OrderUserDto> getOrders(Integer page,Integer limit,String status) {
+		// TODO Auto-generated method stub
+		
+		Pageable pageable = PageRequest.of(page, limit,Sort.by("createdAt").descending());
+		
+		String requestedStatus = null;
+		
+		if(status!=null)
+		{
+			if(status.equalsIgnoreCase("pending")) requestedStatus = OrderStatusConstants.PENDING;
+			else if(status.equalsIgnoreCase("cancelled")) requestedStatus = OrderStatusConstants.CANCELLED;
+			else if(status.equalsIgnoreCase("delivered")) requestedStatus = OrderStatusConstants.DELIVERED;
+			else if(status.equalsIgnoreCase("failed")) requestedStatus = OrderStatusConstants.FAILED;
+			else if(status.equalsIgnoreCase("paid")) requestedStatus = OrderStatusConstants.PAID;
+		}
+		
+		return orderRepo.findByStatus(requestedStatus, pageable).map(o->mapper.toUserOrderDto(o));
+	}
+	
 	@Override
 	public OrdersDto getOrder(String orderId) {
 		
@@ -196,6 +233,20 @@ public class OrderServiceimpl implements IOrderService {
 			throw new AppException("Order Not Found", HttpStatus.NOT_FOUND);
 		}
 		return mapper.toDto(order);
+	}
+	
+	@Override
+	public OrdersCountsResponse getOrderStats() {
+		
+		OrdersCountsResponse response = new OrdersCountsResponse();
+		response.setCancelled(orderRepo.countOrderByStatus(OrderStatusConstants.CANCELLED));
+		response.setTotalOrders(orderRepo.countOrderByStatus(null));
+		response.setDelivered(orderRepo.countOrderByStatus(OrderStatusConstants.DELIVERED));
+		response.setFailed(orderRepo.countOrderByStatus(OrderStatusConstants.FAILED));
+		response.setPending(orderRepo.countOrderByStatus(OrderStatusConstants.PENDING));
+		response.setPreparing(orderRepo.countOrderByStatus(OrderStatusConstants.PREPARING));
+		
+		return response;
 	}
 
 }

@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,10 +57,34 @@ public class OrderController {
 		
 	}
 	
+	//For admin use
+	@GetMapping("/secure/admin/all")
+	public ResponseEntity<?> getOrders(
+			@RequestParam(required = false) String status,
+			@RequestParam(required = false ,defaultValue = "0") Integer page,
+			@RequestParam(required = false ,defaultValue = "10") Integer limit) {
+		
+		return ResponseEntity.ok(new ApiResponse<>("success","Orders", orderService.getOrders(page, limit, status)));
+		
+	}
+	
+	@PutMapping("/secure/")
+	public ResponseEntity<?> updateOrderStatus(@RequestParam String orderId,String status)
+	{
+		orderService.updateStatus(orderId, status);
+		return ResponseEntity.ok(new ApiResponse<>("success","Orders status updated", null));
+	}
+	
 	@GetMapping("/secure/{id}")
 	public ResponseEntity<?> getOrder(@PathVariable String id)
 	{
 		return ResponseEntity.ok(new ApiResponse<>("success","Order data", orderService.getOrder(id)));
+	}
+	
+	@GetMapping("/secure/stats")
+	public ResponseEntity<?> getOrderStats()
+	{
+		return ResponseEntity.ok(new ApiResponse<>("success","Order stats", orderService.getOrderStats()));
 	}
 	
 	@DeleteMapping("/secure/{id}/cancel")

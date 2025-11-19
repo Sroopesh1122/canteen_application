@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { 
   FaHome, 
   FaUtensils, 
@@ -14,18 +14,70 @@ import {
   FaTimes,
   FaSignOutAlt,
   FaBell,
-  FaUserCircle
+  FaUserCircle,
+  FaList,
+  FaTags,
+  FaUser
 } from 'react-icons/fa'
+import axios from 'axios'
+import { useQuery } from '@tanstack/react-query'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+const getProfile = async() => {
+  const response = await axios.get(`${API_URL}/api/v1/user/secure/auth/profile`, {
+    headers: {
+      "Authorization": `Bearer ${localStorage.getItem("authToken")}`
+    }
+  })
+  return response.data;
+}
+
+// Custom Modal Component
+const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Logout</h3>
+        <p className="text-gray-600 mb-6">Are you sure you want to logout? You'll need to login again to access the admin panel.</p>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition duration-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition duration-200"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Admin Root Layout 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+
+  const { data: profileData, isLoading, isError } = useQuery({
+    queryKey: ["profile"],
+    queryFn: getProfile,
+  })
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: FaHome },
-    { name: 'Menu Management', href: '/admin/menu', icon: FaUtensils },
-    { name: 'Item Categories', href: '/admin/categories', icon: FaUtensils },
+    { name: 'Menu Management', href: '/admin/menu', icon: FaList },
+    { name: 'Item Categories', href: '/admin/categories', icon: FaTags },
     { name: 'Orders', href: '/admin/orders', icon: FaShoppingCart },
     { name: 'Customers', href: '/admin/customers', icon: FaUsers },
     { name: 'Analytics', href: '/admin/analytics', icon: FaChartBar },
@@ -39,8 +91,31 @@ const Layout = ({ children }) => {
     return pathname.startsWith(href)
   }
 
+  const handleLogout = () => {
+    // Remove tokens from localStorage
+    localStorage.removeItem("authToken")
+    localStorage.removeItem("role")
+    
+    // Close modal and redirect to login
+    setIsLogoutModalOpen(false)
+    setIsDropdownOpen(false)
+    router.push('/login')
+  }
+
+  const openLogoutModal = () => {
+    setIsLogoutModalOpen(true)
+    setIsDropdownOpen(false)
+  }
+
   return (
     <section className='w-full min-h-screen bg-gray-50 flex'>
+      {/* Logout Confirmation Modal */}
+      <LogoutModal 
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleLogout}
+      />
+
       {/* Sidebar for Desktop */}
       <div className={`hidden lg:flex lg:flex-shrink-0 ${sidebarOpen ? 'w-64' : 'w-20'} transition-all duration-300`}>
         <div className="flex flex-col w-full bg-white border-r border-gray-200 h-screen sticky top-0">
@@ -87,18 +162,62 @@ const Layout = ({ children }) => {
                   <div className="flex items-center">
                     <FaUserCircle className="h-8 w-8 text-gray-400" />
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-700">Admin User</p>
-                      <p className="text-xs text-gray-500">admin@canteen.com</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        {isLoading ? 'Loading...' : profileData?.data?.name || 'Admin User'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {isLoading ? 'loading...' : profileData?.data?.email || 'admin@canteen.com'}
+                      </p>
                     </div>
                   </div>
-                  <button className="text-gray-400 hover:text-gray-600 transition duration-200">
-                    <FaSignOutAlt className="h-5 w-5" />
-                  </button>
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="text-gray-400 hover:text-gray-600 transition duration-200"
+                    >
+                      <FaSignOutAlt className="h-5 w-5" />
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    {isDropdownOpen && (
+                      <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                        <div className="py-1">
+                          <button
+                            onClick={openLogoutModal}
+                            className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition duration-200"
+                          >
+                            <FaSignOutAlt className="h-4 w-4 mr-2" />
+                            Logout
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
-                <button className="text-gray-400 hover:text-gray-600 transition duration-200">
-                  <FaSignOutAlt className="h-5 w-5" />
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="text-gray-400 hover:text-gray-600 transition duration-200"
+                  >
+                    <FaSignOutAlt className="h-5 w-5" />
+                  </button>
+                  
+                  {/* Dropdown Menu for collapsed sidebar */}
+                  {isDropdownOpen && (
+                    <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                      <div className="py-1">
+                        <button
+                          onClick={openLogoutModal}
+                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition duration-200"
+                        >
+                          <FaSignOutAlt className="h-4 w-4 mr-2" />
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -159,11 +278,18 @@ const Layout = ({ children }) => {
               <div className="flex items-center">
                 <FaUserCircle className="h-8 w-8 text-gray-400" />
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-700">Admin User</p>
-                  <p className="text-xs text-gray-500">admin@canteen.com</p>
+                  <p className="text-sm font-medium text-gray-700">
+                    {isLoading ? 'Loading...' : profileData?.data?.name || 'Admin User'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {isLoading ? 'loading...' : profileData?.data?.email || 'admin@canteen.com'}
+                  </p>
                 </div>
               </div>
-              <button className="text-gray-400 hover:text-gray-600 transition duration-200">
+              <button 
+                onClick={openLogoutModal}
+                className="text-gray-400 hover:text-gray-600 transition duration-200"
+              >
                 <FaSignOutAlt className="h-5 w-5" />
               </button>
             </div>
@@ -202,12 +328,45 @@ const Layout = ({ children }) => {
                 </span>
               </button>
               
-              <div className="flex items-center space-x-3">
-                <FaUserCircle className="h-8 w-8 text-gray-400" />
-                <div className="hidden sm:block">
-                  <p className="text-sm font-medium text-gray-700">Admin User</p>
-                  <p className="text-xs text-gray-500">admin@canteen.com</p>
-                </div>
+              {/* User Profile with Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center space-x-3 text-gray-700 hover:text-gray-900 transition duration-200"
+                >
+                  <FaUserCircle className="h-8 w-8 text-gray-400" />
+                  <div className="hidden sm:block text-left">
+                    <p className="text-sm font-medium">
+                      {isLoading ? 'Loading...' : profileData?.data?.name || 'Admin User'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {isLoading ? 'loading...' : profileData?.data?.email || 'admin@canteen.com'}
+                    </p>
+                  </div>
+                </button>
+                
+                {/* Dropdown Menu */}
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-800">
+                        {isLoading ? 'Loading...' : profileData?.data?.name || 'Admin User'}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {isLoading ? 'loading...' : profileData?.data?.email || 'admin@canteen.com'}
+                      </p>
+                    </div>
+                    <div className="py-1">
+                      <button
+                        onClick={openLogoutModal}
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition duration-200"
+                      >
+                        <FaSignOutAlt className="h-4 w-4 mr-2" />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

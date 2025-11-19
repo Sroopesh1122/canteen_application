@@ -12,6 +12,8 @@ import com.sr.app.mapper.Mapper;
 import com.sr.app.response.ApiResponse;
 import com.sr.app.services.IUserService;
 import com.sr.app.services.UserDetailsImpl;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/api/v1/user")
@@ -32,6 +34,15 @@ public class UserController {
 		return ResponseEntity.ok(new ApiResponse<>("success","Profile Data", userDto));
 		
 	}
+	
+	@GetMapping("/secure/")
+	public ResponseEntity<?> getUsers(
+			@RequestParam(required = false) String q,
+			@RequestParam(required = false,defaultValue = "0") Integer page,
+			@RequestParam(required = false,defaultValue = "10") Integer limit) {
+		return ResponseEntity.ok(new ApiResponse<>("success","Users Data", userService.getUsers(q, page, limit)));
+	}
+	
 	
 
 }
