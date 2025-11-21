@@ -3,6 +3,8 @@ package com.sr.app.serviceImpl;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +16,7 @@ import com.sr.app.dto.CategoryDto;
 import com.sr.app.exception.AppException;
 import com.sr.app.mapper.Mapper;
 import com.sr.app.models.ItemCategory;
+import com.sr.app.response.PageResponse;
 import com.sr.app.respos.CategoryRepo;
 import com.sr.app.services.CloudinaryService;
 import com.sr.app.services.ICategoryService;
@@ -33,6 +36,8 @@ public class CategoryServiceImpl implements ICategoryService{
 	private Mapper mapper;
 	
 	
+	 // Clear all categories cache when creating a new one
+    @CacheEvict(value = "categories", allEntries = true)
 	@Override
 	public CategoryDto add(String categoryName, MultipartFile multipartFile) {
 		
@@ -59,17 +64,27 @@ public class CategoryServiceImpl implements ICategoryService{
 	}
 
 
+ // Cache list of categories
+    @Cacheable(
+        value = "categories",
+        key = "T(String).valueOf(#page).concat('-').concat(#limit)"
+    )
 	@Override
-	public Page<CategoryDto> getAll(String q, Integer page, Integer limit) {
+	public PageResponse<CategoryDto> getAll(String q, Integer page, Integer limit) {
 		
 		Pageable pageable = PageRequest.of(page, limit);
 		
 		
-		return categoryRepo.findAllByCategoryName(q, pageable).map(c->{
+		Page<CategoryDto> pageData = categoryRepo.findAllByCategoryName(q, pageable).map(c->{
 			return mapper.toDto(c);
 		});
+		
+		return new PageResponse<>(pageData.getContent(), pageData.getNumber(), pageData.getSize(),pageData.getTotalElements(), pageData.getTotalPages(),pageData.isLast());
+		
 	}
 	
+    // Clear all list cache after delete
+    @CacheEvict(value = "categories", allEntries = true)
 	@Override
 	public boolean delelte(String id) {
 		

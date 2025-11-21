@@ -1,12 +1,11 @@
 package com.sr.app.services;
 
-import org.springframework.data.domain.Page;
-
 import com.sr.app.dto.OrderUserDto;
 import com.sr.app.dto.OrdersDto;
 import com.sr.app.request.OrderRequest;
 import com.sr.app.response.OrderResponse;
 import com.sr.app.response.OrdersCountsResponse;
+import com.sr.app.response.PageResponse;
 
 public interface IOrderService {
 	
@@ -15,12 +14,14 @@ public interface IOrderService {
 	
 	public void updateStatus(String orderId,String status);
 	
-	public Page<OrdersDto> getOrders(String userId,Integer page,Integer limit);
+	public PageResponse<OrdersDto> getOrders(String userId,Integer page,Integer limit);
 	
-	public Page<OrderUserDto> getOrders(Integer page,Integer limit,String status);
+	public PageResponse<OrderUserDto> getOrders(Integer page,Integer limit,String status);
 	
 	public OrdersDto getOrder(String orderId);
 	
 	public OrdersCountsResponse getOrderStats();
+	
+
 
 }

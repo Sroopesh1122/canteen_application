@@ -1,6 +1,7 @@
 package com.sr.app.serviceImpl;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.sr.app.dto.UserDto;
 import com.sr.app.mapper.Mapper;
+import com.sr.app.response.PageResponse;
 import com.sr.app.respos.UserRepo;
 import com.sr.app.services.IUserService;
 
@@ -34,12 +36,18 @@ public class UserServiceImpl implements IUserService {
 		return null;
 	}
 	
+	@Cacheable(
+		    value = "user-search",
+		    key = " #page + '_' + #limit"
+		)
 	@Override
-	public Page<UserDto> getUsers(String searchText, Integer page, Integer limit) {
+	public PageResponse<UserDto> getUsers(String searchText, Integer page, Integer limit) {
 		
 		
 		Pageable pageable = PageRequest.of(page, limit,Sort.by("createdAt").descending());
-		return userRepo.findUserBySearchText(searchText, pageable).map(u->mapper.toDto(u));
+		Page<UserDto> pageData = userRepo.findUserBySearchText(searchText, pageable).map(u->mapper.toDto(u));
+		
+		return new PageResponse<>(pageData.getContent(), pageData.getNumber(), pageData.getSize(),pageData.getTotalElements(), pageData.getTotalPages(),pageData.isLast());
 	}
 
 }

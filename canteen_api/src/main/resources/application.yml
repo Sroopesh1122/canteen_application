@@ -40,16 +40,21 @@ spring:
   config:
     import:
     - optional:file:.env[.properties]
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      timeout: ${REDIS_TIMEOUT}
 server:
   port: 8080
 
-FRONT_END_URL: ${FRONT_END_URL}
+FRONT_END_URL: FRONT_END_URL
 
-CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
-CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
-CLOUDINARY_SECRET_KEY: ${CLOUDINARY_SECRET_KEY}
+CLOUDINARY_CLOUD_NAME: CLOUDINARY_CLOUD_NAME
+CLOUDINARY_API_KEY: CLOUDINARY_API_KEY
+CLOUDINARY_SECRET_KEY: CLOUDINARY_SECRET_KEY
 
 razorpay:
   key:
-    id: ${razorpayId}
-    secret: ${razorpaySecret}
+    id: razorpayId
+    secret: razorpaySecret

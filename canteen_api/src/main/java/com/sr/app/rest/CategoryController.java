@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.sr.app.dto.CategoryDto;
 import com.sr.app.response.ApiResponse;
+import com.sr.app.response.PageResponse;
 import com.sr.app.services.ICategoryService;
 
 @RequestMapping("/api/v1/category")
@@ -45,7 +46,7 @@ public class CategoryController {
 			@RequestParam(required = false,defaultValue = "0") Integer page,
 			@RequestParam(required = false,defaultValue = "10") Integer limit)
 	{
-		Page<CategoryDto> categories = categoryService.getAll(q, page, limit);
+		PageResponse<CategoryDto> categories = categoryService.getAll(q, page, limit);
 		
 		return ResponseEntity.ok(new ApiResponse<>("success", "Categories", categories));
 		

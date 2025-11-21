@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sr.app.response.ApiResponse;
@@ -21,6 +22,18 @@ public class DashboardController {
 	public ResponseEntity<?> getStats1()
 	{
 		return ResponseEntity.ok(new ApiResponse<>("success","Dashboard Stats", dashboardService.dashboardResponse()));
+	}
+	
+	@GetMapping("/public/stats/income")
+	public ResponseEntity<?> getIncomeStats(@RequestParam(required = false , defaultValue = "12") Integer months)
+	{
+		return ResponseEntity.ok(new ApiResponse<>("success","Income Stats", dashboardService.incomeByMonths(months)));
+	}
+	
+	@GetMapping("/public/stats/top-orders")
+	public ResponseEntity<?> getTopOrderedItem()
+	{
+		return ResponseEntity.ok(new ApiResponse<>("success","Income Stats", dashboardService.topOrderedItem()));
 	}
 
 }

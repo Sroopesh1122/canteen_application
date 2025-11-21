@@ -2,11 +2,11 @@ package com.sr.app.services;
 
 import java.util.List;
 
-import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.sr.app.dto.MenuItemCartInfoDto;
 import com.sr.app.dto.MenuItemDto;
+import com.sr.app.response.PageResponse;
 
 public interface IItemService {
 	
@@ -15,9 +15,9 @@ public interface IItemService {
 	
 	public MenuItemDto update(String itemId,String description,Double price,boolean available);
 	
-	public Page<MenuItemDto> findAll(String q, String category, Double minPrice, Double maxPrice,Integer page,Integer limit);
+	public PageResponse<MenuItemDto> findAll(String q, String category, Double minPrice, Double maxPrice,Integer page,Integer limit);
 	
-	public Page<MenuItemCartInfoDto> findAll(String userId,String q, String category, Double minPrice, Double maxPrice,Integer page,Integer limit);
+	public PageResponse<MenuItemCartInfoDto> findAll(String userId,String q, String category, Double minPrice, Double maxPrice,Integer page,Integer limit);
 	
 	public boolean delete(String itemId);
 	

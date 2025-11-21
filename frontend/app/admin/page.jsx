@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
-import React from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { 
   FaUsers, 
   FaShoppingCart, 
@@ -14,8 +14,22 @@ import {
   FaArrowDown,
   FaCalendarAlt,
   FaStar,
-  FaWallet
+  FaWallet,
+  FaChevronDown,
+  FaChevronUp,
+  FaFire,
+  FaImage
 } from 'react-icons/fa'
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Legend
+} from 'recharts'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -43,6 +57,116 @@ const ChartSkeleton = () => {
     </div>
   )
 }
+
+const TopItemsSkeleton = () => {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm animate-pulse">
+      <div className="w-48 h-6 bg-gray-200 rounded mb-6"></div>
+      <div className="space-y-4">
+        {[...Array(3)].map((_, index) => (
+          <div key={index} className="flex items-center space-x-4 p-4 border border-gray-100 rounded-xl">
+            <div className="w-16 h-16 bg-gray-200 rounded-xl"></div>
+            <div className="flex-1 space-y-2">
+              <div className="w-32 h-4 bg-gray-200 rounded"></div>
+              <div className="w-24 h-3 bg-gray-200 rounded"></div>
+            </div>
+            <div className="w-20 h-8 bg-gray-200 rounded-full"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Custom Dropdown Component
+const MonthDropdown = ({ selectedOption, onSelect, isOpen, onToggle, isLoading }) => {
+  const dropdownRef = useRef(null);
+  
+  const options = [
+    { value: 6, label: 'Last 6 months' },
+    { value: 12, label: 'Last year' },
+    { value: 24, label: 'Last 2 years' },
+    { value: 48, label: 'Last 4 years' },
+    { value: 60, label: 'Last 5 years' }
+  ];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        onToggle(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onToggle]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => onToggle(!isOpen)}
+        disabled={isLoading}
+        className={`flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-xl transition-colors duration-200 shadow-sm ${
+          isLoading 
+            ? 'opacity-50 cursor-not-allowed' 
+            : 'hover:border-gray-300'
+        }`}
+      >
+        <FaCalendarAlt className="text-gray-500" />
+        <span className="text-sm font-medium text-gray-700">
+          {options.find(opt => opt.value === selectedOption)?.label}
+        </span>
+        {isLoading ? (
+          <div className="w-4 h-4 border-2 border-gray-300 border-t-yellow-500 rounded-full animate-spin"></div>
+        ) : isOpen ? (
+          <FaChevronUp className="text-gray-400 text-xs" />
+        ) : (
+          <FaChevronDown className="text-gray-400 text-xs" />
+        )}
+      </button>
+
+      {isOpen && !isLoading && (
+        <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => {
+                onSelect(option.value);
+                onToggle(false);
+              }}
+              className={`w-full text-left px-4 py-3 text-sm transition-colors duration-200 ${
+                selectedOption === option.value
+                  ? 'bg-yellow-50 text-yellow-700 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Custom Tooltip for Revenue Chart
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-lg">
+        <p className="text-sm font-semibold text-gray-900 mb-2">{label}</p>
+        <div className="flex items-center space-x-2">
+          <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+          <p className="text-sm text-gray-700">
+            Revenue: <span className="font-semibold text-yellow-600">₹{payload[0].value.toLocaleString()}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 // Stats Card Component
 const StatsCard = ({ title, value, icon: Icon, change, changeType, subtitle, gradient }) => {
@@ -126,98 +250,192 @@ const IncomeComparisonCard = ({ currentMonth, previousMonth }) => {
   )
 }
 
-// Line Graph Component
-const RevenueLineGraph = ({ data }) => {
-  // Mock data for the line graph - in a real app, this would come from your API
-  const monthlyData = [
-    { month: 'Jan', revenue: 0 },
-    { month: 'Feb', revenue: 0 },
-    { month: 'Mar', revenue: 0 },
-    { month: 'Apr', revenue: 0 },
-    { month: 'May', revenue: 0 },
-    { month: 'Jun', revenue: data?.previousMonthIncome || 0 },
-    { month: 'Jul', revenue: data?.currentMonthIncome || 0 },
-  ];
+// Revenue Line Graph Component
+const RevenueLineGraph = ({ data, isLoading }) => {
+  // Transform API data for Recharts
+  const chartData = data?.data
+    ?.map(item => ({
+      month: item.month,
+      revenue: item.income,
+      // Format month for better display (e.g., "2024-12" -> "Dec '24")
+      displayMonth: new Date(item.month + '-01').toLocaleDateString('en-US', { 
+        month: 'short', 
+        year: '2-digit' 
+      })
+    }))
+    ?.reverse() || []; // Reverse to show chronological order
 
-  const maxRevenue = Math.max(...monthlyData.map(d => d.revenue)) || 1;
+  // Calculate total revenue for the period
+  const totalRevenue = chartData.reduce((sum, item) => sum + item.revenue, 0);
+  const hasRevenue = totalRevenue > 0;
+
+  if (isLoading) {
+    return <ChartSkeleton />;
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Total: <span className="font-semibold text-yellow-600">₹{totalRevenue.toLocaleString()}</span>
+          </p>
+        </div>
         <div className="flex items-center space-x-2 text-sm text-gray-500">
           <FaChartLine className="text-yellow-500" />
-          <span>Last 7 Months</span>
+          <span>{chartData.length} Months</span>
         </div>
       </div>
       
-      <div className="relative h-64">
-        {/* Grid Lines */}
-        <div className="absolute inset-0 flex flex-col justify-between">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="border-t border-gray-100"></div>
-          ))}
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <XAxis 
+              dataKey="displayMonth" 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+              interval="preserveStartEnd"
+            />
+            <YAxis 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+              tickFormatter={(value) => `₹${value}`}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend />
+            <Line 
+              type="monotone" 
+              dataKey="revenue" 
+              name="Revenue"
+              stroke="#eab308" 
+              strokeWidth={3}
+              dot={{ fill: '#eab308', strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, fill: '#f59e0b' }}
+              connectNulls
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* No Data State */}
+      {!hasRevenue && (
+        <div className="text-center py-8">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FaChartLine className="text-gray-400 text-2xl" />
+          </div>
+          <p className="text-gray-500 text-sm">
+            No revenue data available for the selected period
+          </p>
         </div>
-        
-        {/* Line Chart */}
-        <div className="absolute inset-0 flex items-end justify-between px-4 pb-8">
-          {monthlyData.map((point, index) => {
-            const height = (point.revenue / maxRevenue) * 140;
-            const isCurrent = point.revenue === data?.currentMonthIncome;
-            
-            return (
-              <div key={point.month} className="flex flex-col items-center space-y-2">
-                {/* Data Point */}
-                <div className="relative">
-                  <div 
-                    className={`w-2 h-2 rounded-full transition-all duration-500 ${
-                      isCurrent ? 'bg-yellow-500 ring-4 ring-yellow-200' : 'bg-yellow-400'
-                    }`}
-                  ></div>
-                  
-                  {/* Connecting Line */}
-                  {index < monthlyData.length - 1 && (
-                    <div 
-                      className="absolute top-1 left-2 w-12 h-0.5 bg-gradient-to-r from-yellow-400 to-yellow-300 transition-all duration-500"
-                      style={{
-                        transform: `scaleX(${point.revenue > 0 ? 1 : 0})`
-                      }}
-                    ></div>
-                  )}
-                </div>
-                
-                {/* Value Label */}
-                {point.revenue > 0 && (
-                  <div className={`text-xs font-medium px-2 py-1 rounded-full transition-all duration-500 ${
-                    isCurrent 
-                      ? 'bg-yellow-500 text-white' 
-                      : 'bg-yellow-50 text-yellow-700'
-                  }`}>
-                    ₹{point.revenue}
-                  </div>
-                )}
-                
-                {/* Month Label */}
-                <div className={`text-xs font-medium transition-colors duration-300 ${
-                  isCurrent ? 'text-yellow-600' : 'text-gray-500'
-                }`}>
-                  {point.month}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Growth Indicator */}
-        <div className="absolute top-4 right-4">
-          <div className="flex items-center space-x-1 px-3 py-1 bg-green-50 rounded-full">
-            <FaChartLine className="text-green-600 text-xs" />
-            <span className="text-xs font-semibold text-green-700">
-              {data?.previousMonthIncome === 0 ? 'New' : 'Growing'}
-            </span>
+      )}
+    </div>
+  );
+}
+
+// Top Ordered Items Component
+const TopOrderedItems = ({ data, isLoading }) => {
+  if (isLoading) {
+    return <TopItemsSkeleton />;
+  }
+
+  const topItems = data?.data || [];
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
+            <FaFire className="text-white text-lg" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Top Ordered Items</h3>
+            <p className="text-sm text-gray-500">Most popular menu items</p>
           </div>
         </div>
+        <div className="flex items-center space-x-2 px-3 py-1 bg-orange-50 rounded-full">
+          <span className="text-sm font-semibold text-orange-700">
+            {topItems.length} Items
+          </span>
+        </div>
       </div>
+
+      {topItems.length > 0 ? (
+        <div className="space-y-4">
+          {topItems.map((item, index) => (
+            <div 
+              key={item.itemId}
+              className="flex items-center space-x-4 p-4 border border-gray-100 rounded-xl hover:border-orange-200 hover:bg-orange-50 transition-all duration-300 group"
+            >
+              {/* Rank Badge */}
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                index === 0 
+                  ? 'bg-gradient-to-br from-yellow-500 to-orange-500 text-white' 
+                  : index === 1
+                  ? 'bg-gradient-to-br from-gray-400 to-gray-500 text-white'
+                  : index === 2
+                  ? 'bg-gradient-to-br from-amber-700 to-amber-800 text-white'
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {index + 1}
+              </div>
+
+              {/* Item Image */}
+              <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-gray-200">
+                {item.imgUrl ? (
+                  <img 
+                    src={item.imgUrl} 
+                    alt={item.itemName}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                    <FaImage className="text-gray-400" />
+                  </div>
+                )}
+              </div>
+
+              {/* Item Details */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-gray-900 truncate">{item.itemName}</h4>
+                    <p className="text-sm text-gray-500 mt-1">{item.categoryName}</p>
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+                      {item.description}
+                    </p>
+                  </div>
+                  <div className="text-right ml-4">
+                    <p className="text-lg font-bold text-gray-900">₹{item.price}</p>
+                    <p className="text-sm text-gray-500">Price</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Count */}
+              <div className="text-center">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 px-4 py-2 rounded-xl border border-green-200">
+                  <p className="text-2xl font-bold text-green-700">{item.totalCount}</p>
+                  <p className="text-xs text-green-600 font-medium">Orders</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FaUtensils className="text-gray-400 text-2xl" />
+          </div>
+          <h4 className="text-lg font-semibold text-gray-900 mb-2">No Orders Yet</h4>
+          <p className="text-gray-500 text-sm max-w-sm mx-auto">
+            Your menu items haven't received any orders yet. Start promoting your menu to see popular items here.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -293,7 +511,16 @@ const PerformanceMetrics = ({ stats }) => {
 }
 
 const Page = () => {
-  const { data: statsData, isLoading, isError, error } = useQuery({
+  const [monthsOption, setMonthsOption] = useState(12);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Separate queries with individual loading states
+  const { 
+    data: statsData, 
+    isLoading: statsLoading, 
+    isError: statsError, 
+    error: statsErrorObj 
+  } = useQuery({
     queryKey: ["dashboard", "stats1"],
     queryFn: async () => {
       const response = await axios.get(`${API_URL}/api/v1/dashboard/public/stats1`);
@@ -301,9 +528,45 @@ const Page = () => {
     }
   })
 
+  const { 
+    data: incomeData, 
+    isLoading: incomeLoading, 
+    isError: incomeError, 
+    error: incomeErrorObj 
+  } = useQuery({
+    queryKey: ["dashboard", "income", monthsOption],
+    queryFn: async () => {
+      const response = await axios.get(`${API_URL}/api/v1/dashboard/public/stats/income?months=${monthsOption}`);
+      return response.data;
+    }
+  })
+
+  const { 
+    data: topOrdersData, 
+    isLoading: topOrdersLoading, 
+    isError: topOrdersError 
+  } = useQuery({
+    queryKey: ["dashboard", "top-orders"],
+    queryFn: async () => {
+      const response = await axios.get(`${API_URL}/api/v1/dashboard/public/stats/top-orders`);
+      return response.data;
+    }
+  })
+
   const stats = statsData?.data;
 
-  if (isLoading) {
+  // Check if initial page load is happening (all data loading for first time)
+  const isInitialLoading = statsLoading && incomeLoading && topOrdersLoading;
+  
+  // Individual loading states for better UX
+  const isStatsLoading = statsLoading;
+  const isIncomeLoading = incomeLoading;
+  const isTopOrdersLoading = topOrdersLoading;
+
+  const isError = statsError || incomeError || topOrdersError;
+  const error = statsErrorObj || incomeErrorObj;
+
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
         <div className="max-w-7xl mx-auto">
@@ -327,10 +590,13 @@ const Page = () => {
           </div>
 
           {/* Charts Skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <ChartSkeleton />
-            <ChartSkeleton />
+            <TopItemsSkeleton />
           </div>
+
+          {/* Insights Skeleton */}
+          <div className="bg-gray-200 rounded-2xl p-6 animate-pulse h-48"></div>
         </div>
       </div>
     )
@@ -373,30 +639,36 @@ const Page = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Total Users"
-            value={stats?.users || 0}
-            icon={FaUsers}
-            subtitle="Registered customers"
-          />
-          <StatsCard
-            title="Menu Items"
-            value={stats?.menuItems || 0}
-            icon={FaUtensils}
-            subtitle="Available dishes"
-          />
-          <StatsCard
-            title="Categories"
-            value={stats?.categories || 0}
-            icon={FaTags}
-            subtitle="Food categories"
-          />
-          <StatsCard
-            title="Total Orders"
-            value={stats?.orders || 0}
-            icon={FaShoppingCart}
-            subtitle="All-time orders"
-          />
+          {isStatsLoading ? (
+            [...Array(4)].map((_, index) => <StatsCardSkeleton key={index} />)
+          ) : (
+            <>
+              <StatsCard
+                title="Total Users"
+                value={stats?.users || 0}
+                icon={FaUsers}
+                subtitle="Registered customers"
+              />
+              <StatsCard
+                title="Menu Items"
+                value={stats?.menuItems || 0}
+                icon={FaUtensils}
+                subtitle="Available dishes"
+              />
+              <StatsCard
+                title="Categories"
+                value={stats?.categories || 0}
+                icon={FaTags}
+                subtitle="Food categories"
+              />
+              <StatsCard
+                title="Total Orders"
+                value={stats?.orders || 0}
+                icon={FaShoppingCart}
+                subtitle="All-time orders"
+              />
+            </>
+          )}
         </div>
 
         {/* Main Content Grid */}
@@ -411,47 +683,67 @@ const Page = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RevenueLineGraph data={stats} />
-          
-          {/* Quick Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Business Insights</h3>
-            <div className="space-y-4">
-              <div className="flex items-start space-x-4 p-4 bg-blue-50 rounded-xl">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FaChartLine className="text-blue-600 text-lg" />
-                </div>
-                <div>
-                  <p className="font-semibold text-blue-900 mb-1">Revenue Growth</p>
-                  <p className="text-sm text-blue-700">
-                    Your revenue has {stats?.previousMonthIncome === 0 ? 'started strong' : 'increased significantly'} this month.
-                  </p>
-                </div>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Revenue Analytics</h3>
+              <MonthDropdown
+                selectedOption={monthsOption}
+                onSelect={setMonthsOption}
+                isOpen={isDropdownOpen}
+                onToggle={setIsDropdownOpen}
+                isLoading={isIncomeLoading}
+              />
+            </div>
+            <RevenueLineGraph 
+              data={incomeData} 
+              isLoading={isIncomeLoading}
+            />
+          </div>
+          
+          <TopOrderedItems 
+            data={topOrdersData} 
+            isLoading={isTopOrdersLoading}
+          />
+        </div>
+
+        {/* Quick Insights */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Business Insights</h3>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-4 p-4 bg-blue-50 rounded-xl">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <FaChartLine className="text-blue-600 text-lg" />
               </div>
-              
-              <div className="flex items-start space-x-4 p-4 bg-green-50 rounded-xl">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FaUsers className="text-green-600 text-lg" />
-                </div>
-                <div>
-                  <p className="font-semibold text-green-900 mb-1">Customer Base</p>
-                  <p className="text-sm text-green-700">
-                    You have {stats?.users || 0} active customers engaging with your platform.
-                  </p>
-                </div>
+              <div>
+                <p className="font-semibold text-blue-900 mb-1">Revenue Growth</p>
+                <p className="text-sm text-blue-700">
+                  Your revenue has {stats?.previousMonthIncome === 0 ? 'started strong' : 'increased significantly'} this month.
+                </p>
               </div>
-              
-              <div className="flex items-start space-x-4 p-4 bg-purple-50 rounded-xl">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FaUtensils className="text-purple-600 text-lg" />
-                </div>
-                <div>
-                  <p className="font-semibold text-purple-900 mb-1">Menu Diversity</p>
-                  <p className="text-sm text-purple-700">
-                    Your menu offers {stats?.menuItems || 0} items across {stats?.categories || 0} categories.
-                  </p>
-                </div>
+            </div>
+            
+            <div className="flex items-start space-x-4 p-4 bg-green-50 rounded-xl">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <FaUsers className="text-green-600 text-lg" />
+              </div>
+              <div>
+                <p className="font-semibold text-green-900 mb-1">Customer Base</p>
+                <p className="text-sm text-green-700">
+                  You have {stats?.users || 0} active customers engaging with your platform.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-4 p-4 bg-purple-50 rounded-xl">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <FaUtensils className="text-purple-600 text-lg" />
+              </div>
+              <div>
+                <p className="font-semibold text-purple-900 mb-1">Menu Diversity</p>
+                <p className="text-sm text-purple-700">
+                  Your menu offers {stats?.menuItems || 0} items across {stats?.categories || 0} categories.
+                </p>
               </div>
             </div>
           </div>

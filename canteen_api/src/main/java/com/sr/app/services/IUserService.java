@@ -3,6 +3,7 @@ package com.sr.app.services;
 import org.springframework.data.domain.Page;
 
 import com.sr.app.dto.UserDto;
+import com.sr.app.response.PageResponse;
 
 public interface IUserService {
 
@@ -10,7 +11,7 @@ public interface IUserService {
 	
 	public UserDto getByEmail(String email);
 	
-	public Page<UserDto> getUsers(String searchText,Integer page,Integer limit);
+	public PageResponse<UserDto> getUsers(String searchText,Integer page,Integer limit);
 	
 	
 }

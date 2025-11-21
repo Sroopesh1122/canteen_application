@@ -188,9 +188,8 @@ const OrdersPage = () => {
     queryKey: ['orders'],
     queryFn: getOrders,
     getNextPageParam: (lastPage) => {
-      const currentPage = lastPage.data.pageable.pageNumber;
-      const totalPages = lastPage.data.totalPages;
-      return currentPage + 1 < totalPages ? currentPage + 1 : undefined;
+      const { data: { last, number } } = lastPage
+      return last ? undefined : number + 1
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

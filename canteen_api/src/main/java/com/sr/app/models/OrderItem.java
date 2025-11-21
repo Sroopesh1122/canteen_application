@@ -3,6 +3,8 @@ package com.sr.app.models;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import lombok.Data;
 
 @Data
@@ -26,5 +28,9 @@ public class OrderItem {
 
 	    @Column(name = "item_image_url")
 	    private String imageUrl;
+	    
+	    @ManyToOne
+	    @JoinColumn(name = "order_id")
+	    private Orders order;
 	
 }

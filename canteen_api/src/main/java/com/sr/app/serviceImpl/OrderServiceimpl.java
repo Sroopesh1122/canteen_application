@@ -1,5 +1,6 @@
 package com.sr.app.serviceImpl;
 
+
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -8,13 +9,14 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
@@ -32,6 +34,7 @@ import com.sr.app.request.OrderRequest;
 import com.sr.app.request.OrderRequest.OrderItemRequest;
 import com.sr.app.response.OrderResponse;
 import com.sr.app.response.OrdersCountsResponse;
+import com.sr.app.response.PageResponse;
 import com.sr.app.respos.CartRepo;
 import com.sr.app.respos.DeliveryAddressRepo;
 import com.sr.app.respos.MenuItemRespo;
@@ -102,6 +105,7 @@ public class OrderServiceimpl implements IOrderService {
 
 	}
 	
+	@CacheEvict(value = { "orderStats" }, allEntries = true)
 	@Override
 	public void updateStatus(String orderId, String status) {
 	
@@ -195,17 +199,18 @@ public class OrderServiceimpl implements IOrderService {
 	}
 
 	@Override
-	public Page<OrdersDto> getOrders(String userId, Integer page, Integer limit) {
+	public PageResponse<OrdersDto> getOrders(String userId, Integer page, Integer limit) {
 	
 		Pageable pageable = PageRequest.of(page, limit);
 		
 		
-		return orderRepo.findByUser(userId, pageable).map(o->mapper.toDto(o));
+		Page<OrdersDto> pageData = orderRepo.findByUser(userId, pageable).map(o->mapper.toDto(o));
+		
+		return new PageResponse<>(pageData.getContent(), pageData.getNumber(), pageData.getSize(),pageData.getTotalElements(), pageData.getTotalPages(),pageData.isLast());
 	}
 	
-	
 	@Override
-	public Page<OrderUserDto> getOrders(Integer page,Integer limit,String status) {
+	public PageResponse<OrderUserDto> getOrders(Integer page,Integer limit,String status) {
 		// TODO Auto-generated method stub
 		
 		Pageable pageable = PageRequest.of(page, limit,Sort.by("createdAt").descending());
@@ -221,7 +226,9 @@ public class OrderServiceimpl implements IOrderService {
 			else if(status.equalsIgnoreCase("paid")) requestedStatus = OrderStatusConstants.PAID;
 		}
 		
-		return orderRepo.findByStatus(requestedStatus, pageable).map(o->mapper.toUserOrderDto(o));
+		Page<OrderUserDto> pageData= orderRepo.findByStatus(requestedStatus, pageable).map(o->mapper.toUserOrderDto(o));
+		
+		return new PageResponse<>(pageData.getContent(), pageData.getNumber(), pageData.getSize(),pageData.getTotalElements(), pageData.getTotalPages(),pageData.isLast());
 	}
 	
 	@Override
@@ -235,6 +242,7 @@ public class OrderServiceimpl implements IOrderService {
 		return mapper.toDto(order);
 	}
 	
+	@Cacheable(value = "orderStats")
 	@Override
 	public OrdersCountsResponse getOrderStats() {
 		
@@ -248,5 +256,6 @@ public class OrderServiceimpl implements IOrderService {
 		
 		return response;
 	}
+	
 
 }

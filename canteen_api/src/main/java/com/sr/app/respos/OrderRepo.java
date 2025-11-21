@@ -1,5 +1,8 @@
 package com.sr.app.respos;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -40,6 +43,18 @@ public interface OrderRepo extends JpaRepository<Orders, String> {
 		    """)
 		Double getPreviousMonthIncome();
 
+	@Query(value = """
+	        SELECT 
+	            DATE_FORMAT(o.created_at, '%Y-%m') AS month,
+	            SUM(o.total_amount) AS income
+	        FROM orders o
+	        WHERE o.status = 'DELIVERED'
+	        AND o.created_at BETWEEN :startDate AND :endDate
+	        GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
+	        ORDER BY month DESC
+	    """, nativeQuery = true)
+	    List<Object[]> getMonthlyIncome(LocalDateTime startDate, LocalDateTime endDate);
 
-	
+
+	    
 }
